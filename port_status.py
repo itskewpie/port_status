@@ -1,5 +1,12 @@
 #!/usr/bin/python
 
+# Get server and port list from controller and
+# extract IP addresses from the response.
+# Then send ping to these IPs to check if the port is active.
+# With this test, we can test if routing is correct.
+# Result shows servers and ports failed getting ping response.
+# Reference http://four-eyes.net/2012/11/openstack-api-python-script-example/
+
 import argparse
 import getopt
 import json
