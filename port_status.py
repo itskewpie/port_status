@@ -14,12 +14,6 @@ import sys
 import urllib2
 import os
 
-auth_url = 'http://192.168.0.200:5000/v2.0'
-tenant = 'admin'
-username = 'admin'
-password = 'nova'
-
-
 def getToken(url, user, tenant, password):
 
     """
@@ -151,11 +145,6 @@ mandatory.add_argument("-p", "--password", help="The administrative user's passw
 mandatory.add_argument("-t", "--tenant", help="The administrative user's tenant / project", type=str)
 mandatory.add_argument("-u", "--url", help="The Keystone API endpoint from running, 'nova endpoints'", type=str)
 args = parser.parse_args()
-
-args.url = auth_url
-args.tenant = tenant
-args.username = username
-args.password = password
 
 # Validate arugments were given
 if type(args.url) != type(str()):
