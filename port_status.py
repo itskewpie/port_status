@@ -13,6 +13,25 @@ import json
 import sys
 import urllib2
 import os
+import environment as env
+
+def sendRequest(url, token=None, payload=None):
+
+    """
+    Make a request and send request.
+    headers will be list of {key, value} dict.
+    Returns response.
+    """
+    request = urllib2.Request(url)
+    request.add_header("Content-type", "application/json")
+    if token != None:
+        request.add_header("X-Auth-Token", token)
+
+    request = urllib2.urlopen(request, payload) 
+    json_data = json.loads(request.read())
+
+    request.close()
+    return json.dumps(json_data)
 
 def getToken(url, user, tenant, password):
 
@@ -21,8 +40,6 @@ def getToken(url, user, tenant, password):
     user name, password, and OpenStack API URL.
     """
     url = url + '/tokens'
-    tokenRequest = urllib2.Request(url)
-    tokenRequest.add_header("Content-type", "application/json")
     data = { 
         "auth":{
             "tenantName": tenant,
@@ -33,12 +50,7 @@ def getToken(url, user, tenant, password):
        }
     }
     jsonPayload = json.dumps(data)
-   
-    request = urllib2.urlopen(tokenRequest, jsonPayload)
-    json_data = json.loads(request.read())
-   
-    request.close()
-    return json.dumps(json_data)
+    return sendRequest(url, payload=jsonPayload)
 
 def getPorts(url, token):
 
@@ -46,15 +58,7 @@ def getPorts(url, token):
     Returns ports for the given tenant.
     """
     url = url + '/v2.0/ports'
-    portRequest = urllib2.Request(url)
-    portRequest.add_header("Content-type", "application/json")
-    portRequest.add_header("X-Auth-Token", token)
-
-    request = urllib2.urlopen(portRequest)
-    json_data = json.loads(request.read())
-
-    request.close()
-    return json.dumps(json_data)
+    return sendRequest(url, token)
 
 def getNetworks(url, token):
 
@@ -62,15 +66,7 @@ def getNetworks(url, token):
     Returns networks
     """
     url = url + '/v2.0/networks'
-    networkRequest = urllib2.Request(url)
-    networkRequest.add_header("Content-type", "application/json")
-    networkRequest.add_header("X-Auth-Token", token)
-
-    request = urllib2.urlopen(networkRequest)
-    json_data = json.loads(request.read())
-
-    request.close()
-    return json.dumps(json_data)
+    return sendRequest(url, token)
 
 def getNetworkNames(networks):
     """
@@ -81,22 +77,33 @@ def getNetworkNames(networks):
         networkNames.append(network['name'])
     return networkNames
 
-def getServers(url, token):
+def getServers(url, token, hostname):
 
     """
     Returns instances for the given tenant.
     """
     url = url + '/servers/detail?all_tenants=1'
-    serverRequest = urllib2.Request(url)
-    serverRequest.add_header("Content-type", "application/json")
-    serverRequest.add_header("X-Auth-Token", token) 
+    if hostname != None:
+        url = url + ('&host=%s') % hostname
+    return sendRequest(url, token)
 
-    request = urllib2.urlopen(serverRequest)
-    json_data = json.loads(request.read())
+def getHypervisors(url, token):
 
-    request.close()
-    return json.dumps(json_data)
+    """
+    Returns hypervisor list.
+    """
+    url = url + '/os-hypervisors'
+    return sendRequest(url, token)
 
+def isValidHypervisor(hypervisors, hostname):
+
+    """
+    Returns if the given hostname is valid.
+    """
+    for hypervisor in hypervisors['hypervisors']:
+        if hypervisor['hypervisor_hostname'] == hostname:
+            return True 
+    return False
 
 def checkPortStatus(ip):
     
@@ -139,32 +146,12 @@ def getServerPortStatus(servers, networks, downServers):
 
 # Build our required arguments list
 parser = argparse.ArgumentParser()
-mandatory = parser.add_argument_group("mandatory")
-mandatory.add_argument("-n", "--username", help="The administrative user for your OpenStack installation", type=str)
-mandatory.add_argument("-p", "--password", help="The administrative user's password", type=str)
-mandatory.add_argument("-t", "--tenant", help="The administrative user's tenant / project", type=str)
-mandatory.add_argument("-u", "--url", help="The Keystone API endpoint from running, 'nova endpoints'", type=str)
+parser.add_argument("-c", "--cnode", help="Full hostname of cnode to check,\
+                                     all ports will be return if not specified.", type=str)
 args = parser.parse_args()
 
-# Validate arugments were given
-if type(args.url) != type(str()):
-    sys.stderr.write('Invalid URL: %s\n' % args.url)
-    parser.print_help()
-    sys.exit(2)
-if type(args.tenant) != type(str()):
-    sys.stderr.write('Invalid tenant: %s\n' % args.tenant)
-    parser.print_help()
-    sys.exit(2)
-if type(args.password) != type(str()):
-    sys.stderr.write('Invalid password: %s\n' % args.password)
-    parser.print_help()
-    sys.exit(2)
-if type(args.username) != type(str()):
-    sys.stderr.write('Invalid username: %s\n' % args.username)
-    parser.print_help()
-    sys.exit(2)
-   
-adminToken = json.loads(getToken(args.url, args.username, args.tenant, args.password))
+# Get admin token
+adminToken = json.loads(getToken(env.AUTH_URL, env.USERNAME, env.TENANT, env.PASSWORD))
 adminTokenID = adminToken['access']['token']['id']
 adminTokenTenantID = adminToken['access']['token']['tenant']['id']
 
@@ -175,21 +162,30 @@ for item in adminToken['access']['serviceCatalog']:
     if item['name'] == "nova":
         adminNovaURL = item['endpoints'][0]['adminURL']
 
+# Validate arugments were given
+hypervisors = json.loads(getHypervisors(adminNovaURL, adminTokenID))
+if args.cnode != None and (type(args.cnode) != type(str()) or
+   isValidHypervisor(hypervisors, args.cnode) == False):
+    sys.stderr.write('Invalid conde: %s\n\n' % args.cnode)
+    parser.print_help()
+    sys.exit(2)
+
 # Get servers for given tenant
-servers = json.loads(getServers(adminNovaURL, adminTokenID))
+servers = json.loads(getServers(adminNovaURL, adminTokenID, args.cnode))
 networks = json.loads(getNetworks(adminQuantumURL, adminTokenID))
-ports = json.loads(getPorts(adminQuantumURL, adminTokenID))
+#ports = json.loads(getPorts(adminQuantumURL, adminTokenID))
 
 portDownServers = []
 getServerPortStatus(servers, networks, portDownServers)
-downPorts = []
-getPortStatus(ports, downPorts)
+
+#downPorts = []
+#getPortStatus(ports, downPorts)
 
 print ""
-print "====================PORT DOWN SERVERS======================="
+print "==================== PORT DOWN SERVERS: ", args.cnode, "======================="
 for server in portDownServers:
-    print "Server ID:", server['id'], "Name:", server['name'], "IP address:", server['ip']
+    print "Server ID:", server['id'], " Name:", server['name'], " IP:", server['ip']
 print ""
-print "====================DOWN PORTS======================="
-for port in downPorts:
-    print "Port ID:", port['id'], "IP address:", port['ip']
+#print "==================== DOWN PORTS:", args.cnode, "======================="
+#for port in downPorts:
+#    print "Port ID:", port['id'], "IP address:", port['ip']
