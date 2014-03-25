@@ -196,15 +196,21 @@ getServerPortStatus(servers, networks, args.interface, portDownServers)
 
 #downPorts = []
 #getPortStatus(ports, downPorts)
-print ""
-print "==================== PORT DOWN SERVERS: ", args.cnode, "======================="
-f = open('/var/lib/port_status.log', 'a')
-for server in portDownServers:
-    data = "[%s] Server ID:%s  Name:%s  IP:%s\n" % (datetime.datetime.now(), server['id'], server['name'], server['ip'])
-    print data
-    f.write(data)
-f.close()
-print ""
-#print "==================== DOWN PORTS:", args.cnode, "======================="
-#for port in downPorts:
-#    print "Port ID:", port['id'], "IP address:", port['ip']
+if portDownServers == []:
+    print "CheckPortStatus OK"
+    sys.exit(0)
+else:
+    print ""
+    print "CheckPortStatus CRITICAL: "
+    print "==================== PORT DOWN SERVERS: ", args.cnode, "======================="
+    f = open('/var/log/sensu/port_status.log', 'a')
+    for server in portDownServers:
+        data = "[%s] Server ID:%s  Name:%s  IP:%s\n" % (datetime.datetime.now(), server['id'], server['name'], server['ip'])
+        print data
+        f.write(data)
+    f.close()
+    print ""
+    #print "==================== DOWN PORTS:", args.cnode, "======================="
+    #for port in downPorts:
+    #    print "Port ID:", port['id'], "IP address:", port['ip']
+    sys.exit(2)
