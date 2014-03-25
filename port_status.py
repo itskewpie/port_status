@@ -119,7 +119,7 @@ def checkPortStatus(ip):
     """
     Returns port active status with ping test.
     """
-    cmd = 'ping -c 1 -W 2 ' + ip
+    cmd = 'ping -c 1 -W 2 %s >/dev/null 2>&1' %ip
     if os.system(cmd) == 0:
         return "ACTIVE"
     else:
