@@ -198,7 +198,7 @@ getServerPortStatus(servers, networks, args.interface, portDownServers)
 #getPortStatus(ports, downPorts)
 print ""
 print "==================== PORT DOWN SERVERS: ", args.cnode, "======================="
-f = open('port_status.log', 'a')
+f = open('/var/lib/port_status.log', 'a')
 for server in portDownServers:
     data = "[%s] Server ID:%s  Name:%s  IP:%s\n" % (datetime.datetime.now(), server['id'], server['name'], server['ip'])
     print data
