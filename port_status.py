@@ -67,14 +67,22 @@ def getNetworks(url, token):
     """
     url = url + '/v2.0/networks'
     return sendRequest(url, token)
+    
 
-def getNetworkNames(networks):
+def getNetworkNames(networks, interface):
     """
     Returns network name list
     """
+    def _return_net_type(network):
+        if network['name'].split('.')[-1] =='private':
+            return 'eth1'
+        return 'eth0'
+
     networkNames = []
     for network in networks['networks']:
-        networkNames.append(network['name'])
+        net_type = _return_net_type(network)
+        if interface == None or interface == net_type:
+            networkNames.append(network['name'])
     return networkNames
 
 def getServers(url, token, hostname):
@@ -110,7 +118,7 @@ def checkPortStatus(ip):
     """
     Returns port active status with ping test.
     """
-    cmd = 'ping -c 1 -W 3 ' + ip
+    cmd = 'ping -c 1 -W 2 ' + ip
     if os.system(cmd) == 0:
         return "ACTIVE"
     else:
@@ -127,12 +135,12 @@ def getPortStatus(ports, downPorts):
             if status == "DOWN":
                 downPorts.append({'id': port['id'], 'ip': ip['ip_address']})
 
-def getServerPortStatus(servers, networks, downServers):
+def getServerPortStatus(servers, networks, interface, downServers):
 
     """
     Returns server port active status with ping test.
     """
-    networks = getNetworkNames(networks)
+    networks = getNetworkNames(networks, interface)
     for server in servers['servers']:
         for network in networks:
             try:
@@ -148,6 +156,7 @@ def getServerPortStatus(servers, networks, downServers):
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cnode", help="Full hostname of cnode to check,\
                                      all ports will be return if not specified.", type=str)
+parser.add_argument("-i", "--interface", help="Full hostname of cnode to check.", type=str)
 args = parser.parse_args()
 
 # Get admin token
@@ -169,6 +178,12 @@ if args.cnode != None and (type(args.cnode) != type(str()) or
     sys.stderr.write('Invalid conde: %s\n\n' % args.cnode)
     parser.print_help()
     sys.exit(2)
+if args.interface != None and (args.interface != 'eth0' and
+                               args.interface != 'eth1'):
+    sys.stderr.write('Invalid interface name: %s\n\n' % args.interface)
+    parser.print_help()
+    sys.exit(2)
+    
 
 # Get servers for given tenant
 servers = json.loads(getServers(adminNovaURL, adminTokenID, args.cnode))
@@ -176,7 +191,7 @@ networks = json.loads(getNetworks(adminQuantumURL, adminTokenID))
 #ports = json.loads(getPorts(adminQuantumURL, adminTokenID))
 
 portDownServers = []
-getServerPortStatus(servers, networks, portDownServers)
+getServerPortStatus(servers, networks, args.interface, portDownServers)
 
 #downPorts = []
 #getPortStatus(ports, downPorts)
