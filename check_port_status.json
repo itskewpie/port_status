@@ -1,0 +1,13 @@
+{
+  "checks": {
+    "check_port_status": {
+      "command": "port_status/port_status.py -i eth0",
+      "handlers": [
+        "default"
+      ],
+      "standalone": true,
+      "interval": 600
+    }
+  }
+}
+
