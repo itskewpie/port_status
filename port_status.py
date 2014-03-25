@@ -14,6 +14,7 @@ import sys
 import urllib2
 import os
 import environment as env
+import datetime
 
 def sendRequest(url, token=None, payload=None):
 
@@ -195,11 +196,14 @@ getServerPortStatus(servers, networks, args.interface, portDownServers)
 
 #downPorts = []
 #getPortStatus(ports, downPorts)
-
 print ""
 print "==================== PORT DOWN SERVERS: ", args.cnode, "======================="
+f = open('port_status.log', 'a')
 for server in portDownServers:
-    print "Server ID:", server['id'], " Name:", server['name'], " IP:", server['ip']
+    data = "[%s] Server ID:%s  Name:%s  IP:%s\n" % (datetime.datetime.now(), server['id'], server['name'], server['ip'])
+    print data
+    f.write(data)
+f.close()
 print ""
 #print "==================== DOWN PORTS:", args.cnode, "======================="
 #for port in downPorts:
